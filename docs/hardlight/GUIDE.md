@@ -3,7 +3,8 @@
 This fork reshapes the cleanyourtv launcher (`com.gathin.tvhome`) into **Hard Light**, a console-style Home
 screen. There is one row of apps standing on a horizon line, a big app name in a display typeface, a compact
 top rail and control hints. It ships three themes for that layout: **Hard Light** (neon face-button symbols
-on a cold void) and **Mono** in dark and light.
+on a cold void), **Mono** in dark and light, and **Ocean** (a wave photo, a script typeface, and focus
+shadows in each app's own colour).
 
 This guide says, in order, what to change in `launcher/` to get there. Each section has a goal, the files and
 methods it touches, the steps, and how to check the result. Nothing here is implemented yet: the mockups and
@@ -27,9 +28,9 @@ themes in this folder are the target.
 9. [The rail: one horizontal row](#9-the-rail-one-horizontal-row)
 10. [Tile focus: rise, dim, greyscale](#10-tile-focus-rise-dim-greyscale)
 11. [Horizon, reflection, under-glow](#11-horizon-reflection-under-glow)
-12. [Focus style: outline](#12-focus-style-outline)
+12. [Focus styles: outline and halo](#12-focus-styles-outline-and-halo)
 13. [A Layout row in Launcher settings](#13-a-layout-row-in-launcher-settings)
-14. [The three themes](#14-the-three-themes)
+14. [The themes](#14-the-themes)
 15. [Performance budget](#15-performance-budget)
 16. [Verification on a real TV](#16-verification-on-a-real-tv)
 17. [Rollback](#17-rollback)
@@ -49,7 +50,11 @@ themes in this folder are the target.
 |---|---|---|
 | ![Hard Light, Disney+ focused](mockups/mockup-c-disney.jpg) | ![Mono Dark](mockups/mockup-d.jpg) | ![Mono Light](mockups/mockup-e.jpg) |
 
-Open [`mockups/index.html`](mockups/index.html) in a browser to move the focus with the arrow keys (keys 1–5
+| Ocean | Ocean, focus moved |
+|---|---|
+| ![Ocean](mockups/mockup-f.jpg) | ![Ocean, HBO Max focused](mockups/mockup-f-hbo.jpg) |
+
+Open [`mockups/index.html`](mockups/index.html) in a browser to move the focus with the arrow keys (keys 1–6
 switch mockups). The mockups are HTML, not screenshots from a TV. The app banners in them were cropped from a
 real Home screen only to illustrate the layout.
 
@@ -164,7 +169,7 @@ stat -c %s app/build/outputs/apk/release/app-release.apk   # macOS: stat -f %z
 
 ## 4. Adding config keys
 
-**Goal:** a pattern you will repeat for each of the 15 new keys in [Appendix B](#appendix-b-new-keys).
+**Goal:** a pattern you will repeat for each of the 17 new keys in [Appendix B](#appendix-b-new-keys).
 
 `Config.java` reads each key from `res/values/config.xml` first, then lets the theme's `config.json` override
 it. Follow `show_stats` end to end. Every new key touches the same places:
@@ -180,13 +185,14 @@ it. Follow `show_stats` end to end. Every new key touches the same places:
    - `color()` accepts `#RRGGBB` and forces the result opaque.
 5. **Constructor call:** pass the new argument in `new Config(...)` (`Config.java:465`), in the same order.
 
-Enum-like keys (`layout`, `display_font`, `surface_mode`, `focus_style`, `control_hints`, `header_mark`):
+Enum-like keys (`layout`, `display_font`, `surface_mode`, `focus_style`, `control_hints`, `header_mark`,
+`horizon_style`):
 - Copy `Config.glowStyle()` (the `GLOW_RADIAL` / `GLOW_HORIZON` constants near `Config.java:181`). It is a
   static parser that returns the default for unknown strings.
 - Its JVM test, `launcher/app/src/test/java/com/gathin/tvhome/GlowStyleTest.java`, is the template for a test
   of each new parser.
 
-Colour keys (`ink_color`, `muted_color`, `hairline_color`):
+Colour keys (`ink_color`, `muted_color`, `highlight_color`, `hairline_color`):
 - Their default is "not set" (`0`), meaning "keep today's colours".
 - Read them only from JSON, the way `background_color` is (`Config.java:333`, `:403`).
 
@@ -222,6 +228,32 @@ ExtraLight weight for the rail's hero name.
    `fillHero` (section 8) and to the top-rail clock (section 7), only when `cfg.displayFont` is `tektur`.
    Otherwise, in rail mode, use `R.string.font_extralight`.
 
+### Great Vibes (the Ocean theme)
+
+`display_font: "great_vibes"` uses [Great Vibes](https://fonts.google.com/specimen/Great+Vibes) (SIL Open Font
+License), a script face. Set the hero name and the greeting in it; the time, date, hints and tiles keep
+Outfit.
+
+1. Take `GreatVibes-Regular.ttf` and its `OFL.txt` from
+   [google/fonts](https://github.com/google/fonts/tree/main/ofl/greatvibes). It has a single weight, so no
+   instancing is needed.
+2. Subset it the same way. A Latin-1 subset that keeps `kern,liga,calt` (the joined script needs `calt`) is
+   about 73 KB, or about 42 KB compressed in the APK. ASCII only is about 55 KB raw and 31 KB compressed.
+   ```bash
+   pyftsubset GreatVibes-Regular.ttf --unicodes="U+0020-007E,U+00A0-00FF,U+2013-2014,U+2018-201D,U+2022,U+2026" \
+     --layout-features='kern,liga,calt' --output-file=res/font/greatvibes_regular.ttf
+   ```
+3. Add `res/font/greatvibes.xml` and `font_script` in `values/fonts.xml`, with a system fallback in
+   `values-vi/fonts.xml`.
+4. In `fillHero` and `updateGreeting` (`MainActivity.java:2213`), use it when `cfg.displayFont` is
+   `great_vibes`. A script face is taller than Outfit: give the name about 20% more line height and leave
+   about 40dp between the eyebrow and the name, or the capital swashes run into the eyebrow (mockup F does
+   this).
+5. Show the greeting in sentence case ("Good evening"). Script capitals in all caps are unreadable.
+
+**Both fonts together** cost about 60 KB of the budget from section 3. If that doesn't fit, ship only the
+fonts your themes use.
+
 **Check:** the APK grows by the font's size and no more. Lint has no `MissingTranslation` errors.
 
 ---
@@ -232,8 +264,8 @@ ExtraLight weight for the rail's hero name.
 tune Hard Light and Mono Dark. With none of the keys set, nothing changes.
 
 There is no `colors.xml`: every colour is a literal. The approach is to **apply the colours at runtime, right
-after inflation**, from one small class. Add a `Palette.java` that holds `ink`, `muted`, `hairline` and
-`light`, built from `Config`. Then:
+after inflation**, from one small class. Add a `Palette.java` that holds `ink`, `muted`, `highlight`,
+`hairline` and `light`, built from `Config`. Then:
 
 **Text** (`setTextColor` after `setContentView` in `MainActivity.onCreate`). These views have hard-coded
 white or alpha-white:
@@ -241,7 +273,9 @@ white or alpha-white:
   date, `heroName`, `heroMeta`, stats and race panel);
 - the same views in `res/layout-iw/activity_main.xml`.
 
-Use `ink` for the clock and hero name, and `muted` for the greeting, date and meta. `MainActivity.java:414`
+Use `ink` for the clock and hero name, and `muted` for the greeting, date and meta. `highlight` (from
+`highlight_color`, falling back to `ink`) colours the eyebrow and the hints' key words, like the sand colour in
+Ocean. `MainActivity.java:414`
 captures `greetingColor` from the layout: read it after applying the palette.
 
 **Tile names:** `item_app.xml:46` (label) and `:63` (name). Set them in `AppAdapter.onCreateViewHolder`
@@ -462,6 +496,10 @@ belongs.
 1. **Horizon.** In `onDraw`, `c.drawRect(0, baseY, parent.getWidth(), baseY + 1, hairlinePaint)`, where
    `baseY` is the tiles' bottom edge at rest. Use `hairline_color`, or `0x47E9EDF7` if it's not set. Give
    Hard Light a horizontal `LinearGradient` that fades at both ends; Mono gets a flat line.
+
+   `horizon_style: wave` (Ocean) draws a shoreline instead: a `Path` of two summed sines across the width
+   (amplitude about 4px and 1.5px, 9 and 23 half-periods; see `shorePath` in `mockups/index.html`), stroked at
+   1.5px with the same fading gradient. Build the path once in `onSizeChanged`, not in `onDraw`.
 2. **Reflection.** For each visible child:
    - get its banner `Bitmap` once and cache a **flipped, faded, downscaled** copy per package (half size is
      enough: it is blurred anyway), the way `MainActivity` caches `HeroArt` in `heroArtCache`
@@ -490,7 +528,7 @@ belongs.
 
 ---
 
-## 12. Focus style: outline
+## 12. Focus styles: outline and halo
 
 **Goal:** `focus_style: outline` replaces the frosted glass highlight with a plain 2px rim in `ink`, offset
 8px from the tile. Mono Dark and Mono Light use it; Hard Light keeps `glass`.
@@ -511,6 +549,32 @@ belongs.
    whatever the app's colour.
 
 **Check:** on Mono Light the rim is black on white and visible on a white banner (Netflix, YouTube).
+
+### Focus style: halo (the Ocean theme)
+
+**Goal:** `focus_style: halo` keeps the tile clear (no frosted fill). It draws its shadow **in the app logo's
+colour**: a 3px rim, a soft drop shadow under the raised tile, and a wide faint halo. Netflix glows red,
+Disney+ teal and Crunchyroll orange.
+
+The colour already exists. `AppAdapter.vividColor` (`AppAdapter.java:626-669`) samples the banner at 12×12
+and takes the most vivid pixel. A nearly monochrome banner gets its lifted average instead: HBO Max comes out
+slate `#727B8C`. The result is cached per app and read with `adapter.ambientColorAt(position)` (`:619`). The
+mockup's `LOGO` table was computed with the same algorithm from the same banners.
+
+1. In `GlassView`, add a `halo` mode that draws, from back to front:
+   - the 12 glow rings (`:74-101`) in the accent at about 0.38 alpha, spread wider (offset 0, about 45dp);
+   - a drop shadow: one blurred rounded rect in the accent, offset 18dp down, alpha 0.6. Use a
+     `BlurMaskFilter` once, at setup, on a software-layer bitmap that is cached per size; don't blur per
+     frame;
+   - a 3px rim in the accent.
+
+   Skip the fill and the specular.
+2. In `onTileFocused` (`MainActivity.java:1485-1491`), call `setAccent(adapter.ambientColorAt(position))` for
+   every tile, not only the dock, when `focus_style` is `halo`. That is what `app_glow` already does.
+3. With `reduced_motion`, swap the colour instead of cross-fading it.
+
+**Check:** move across the rail. Each tile's shadow takes its own colour, and a white banner (Netflix,
+YouTube) still shows a coloured rim.
 
 ---
 
@@ -545,16 +609,17 @@ Follow the Columns row, which works the same way:
 
 ---
 
-## 14. The three themes
+## 14. The themes
 
 The theme folders are in [`themes/`](themes) here, next to this guide. They move to the repo's `themes/` in
-[section 18](#18-publishing). All three use `layout: rail`.
+[section 18](#18-publishing). All four use `layout: rail`.
 
 | Theme | Folder | Look |
 |---|---|---|
 | Hard Light | [`themes/hardlight/`](themes/hardlight) | Cold void `#04050A`. The four face-button symbols as a hologram on the right (`wallpaper.jpg`, made by `make_wallpaper.py`). Tektur, glyph hints, reflections and under-glow |
 | Mono Dark | [`themes/mono-dark/`](themes/mono-dark) | Pure black, white ink, Outfit ExtraLight. Greyscale tiles at 42%; the focused app is the only colour. Outline focus. No wallpaper |
 | Mono Light | [`themes/mono-light/`](themes/mono-light) | Pure white, near-black ink, light grey hairlines; otherwise the same as Mono Dark |
+| Ocean | [`themes/ocean/`](themes/ocean) | A breaking wave under a rainbow by a green sea cliff, graded to deep sea where the text and tiles sit (`wallpaper.jpg`, made by `make_wallpaper.py` from the photo). Great Vibes for the greeting and name, sand-coloured highlights, a wavy shoreline, reflections, and focus shadows in each app's logo colour (`focus_style: halo`) |
 
 **Hard Light palette:**
 
@@ -568,11 +633,28 @@ The theme folders are in [`themes/`](themes) here, next to this guide. They move
 | Square | `#FF78D2` | □ |
 | Frost | `#E9EDF7` | `ink_color` |
 
-**Regenerating the wallpaper** (needs Pillow, numpy and scipy):
+**Ocean palette:**
+
+| Token | Hex | Used for |
+|---|---|---|
+| Abyss | `#03161D` | `background_color`, and the wash the wallpaper is graded to |
+| Seafoam | `#EAF7F4` | `ink_color`: name, time, labels |
+| Mist | `#A9C7C4` | `muted_color`: date, hints |
+| Sand | `#E8D3AE` | `highlight_color`: the eyebrow and the hints' key words |
+| Foam line | `#9FC2BE` | `hairline_color`: the shoreline |
+| Logo colour | per app | The focus halo and under-glow, from `vividColor` |
+
+**Regenerating the wallpapers.** Hard Light needs Pillow, numpy and scipy; Ocean needs Pillow and numpy, plus
+the source photo:
 
 ```bash
 PS7_LAYOUT=concept python3 docs/hardlight/themes/hardlight/make_wallpaper.py docs/hardlight/themes/hardlight/wallpaper.jpg
+python3 docs/hardlight/themes/ocean/make_wallpaper.py <photo.jpg> docs/hardlight/themes/ocean/wallpaper.jpg
 ```
+
+The Ocean script crops the photo to 16:9 and darkens the left 55% and the bottom 42% towards Abyss. It adds
+grain, and lowers the JPEG quality until the file is under 300 KB. Another photo works too: keep its bright,
+busy part in the upper right, where nothing sits on top of it.
 
 **Pushing a theme** (after section 2, so `theme.sh` targets the fork's package):
 
@@ -691,7 +773,7 @@ When the launcher work is done and tested on a TV:
 | `java/com/gathin/tvhome/Config.java` | 4, 5, 6, 13 |
 | `res/values/config.xml` | 4 |
 | `themes/README.md` (Keys table) | 4, 18 |
-| `res/font/`, `res/values/fonts.xml`, `res/values-vi/fonts.xml` | 5 |
+| `res/font/`, `res/values/fonts.xml`, `res/values-vi/fonts.xml` | 5 (Tektur, Great Vibes) |
 | New `java/com/gathin/tvhome/Palette.java` | 6 |
 | `res/drawable/pill_*`, `tile_bg`, `glass_panel`, `input_row_bg`, `settings_choice_bg` (+ light twins) | 6 |
 | `res/values/styles.xml` | 6 |
@@ -702,7 +784,7 @@ When the launcher work is done and tested on a TV:
 | `java/com/gathin/tvhome/GridNavigation.java` | 9 |
 | `java/com/gathin/tvhome/DockDecoration.java` | 6 |
 | New `java/com/gathin/tvhome/RailDecoration.java` | 11 |
-| `java/com/gathin/tvhome/GlassView.java` | 6, 12 |
+| `java/com/gathin/tvhome/GlassView.java` | 6, 12 (outline, halo) |
 | `java/com/gathin/tvhome/WallpaperPlayer.java` | 6 |
 | `res/layout/activity_launcher_settings.xml`, `LauncherSettingsActivity.java` | 13 |
 | `res/values*/strings.xml` | 2, 8, 13 |
@@ -716,17 +798,19 @@ Every key is optional. The default (in **bold**) is today's behaviour.
 | Key | Type | Meaning |
 |---|---|---|
 | `layout` | **`classic`** \| `rail` | One horizontal row of apps on a horizon line instead of the dock and grid. `rail` also turns on `app_library` |
-| `display_font` | **`outfit`** \| `tektur` | Typeface of the hero name and the top-rail time in the rail layout |
+| `display_font` | **`outfit`** \| `tektur` \| `great_vibes` | Typeface of the hero name and the top-rail time in the rail layout; `great_vibes` sets the name and the greeting in script |
 | `surface_mode` | **`dark`** \| `light` | `light` switches pills, focus, panels and the glow to their light variants |
 | `ink_color` | `#RRGGBB` | Main text: clock, hero name, focused labels. Not set: today's white |
 | `muted_color` | `#RRGGBB` | Secondary text: greeting, date, eyebrow, hints |
+| `highlight_color` | `#RRGGBB` | The eyebrow and the hints' key words. Not set: `ink_color` |
 | `hairline_color` | `#RRGGBB` | The horizon line and the tile edges in Mono |
 | `header_mark` | **`none`** \| `face_buttons` | △ ○ ✕ □ at the left of the top rail |
 | `hero_eyebrow` | **false** | "Last opened · …" above the hero name; records launches in every layout |
 | `control_hints` | **`none`** \| `text` \| `glyphs` | The hint row under the hero name |
-| `focus_style` | **`glass`** \| `outline` | Frosted glass highlight, or a 2px rim in `ink_color` |
+| `focus_style` | **`glass`** \| `outline` \| `halo` | Frosted glass highlight; a 2px rim in `ink_color`; or a rim, drop shadow and halo in the app logo's colour |
 | `tile_rest_alpha` | 30 to 100, **100** | Opacity of tiles without focus |
 | `tile_rest_grayscale` | **false** | Tiles without focus in greyscale; the focused one in colour |
 | `horizon_line` | **false** | A hairline under the rail (rail layout only) |
+| `horizon_style` | **`line`** \| `wave` | A straight hairline, or a gentle shoreline wave |
 | `tile_reflection` | **false** | Tiles mirrored under the horizon (rail layout only) |
 | `under_glow` | **false** | A glow in the focused app's colour under its tile (rail layout only) |

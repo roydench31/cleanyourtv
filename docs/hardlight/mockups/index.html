@@ -8,6 +8,7 @@
 @font-face { font-family: Outfit; src: url(fonts/outfit.ttf); font-weight: 100 900; }
 @font-face { font-family: Tektur; src: url(fonts/tektur.woff2) format("woff2"); font-weight: 400 700; }
 @font-face { font-family: "Instrument Sans"; src: url(fonts/instrumentsans.woff2) format("woff2"); font-weight: 400 600; }
+@font-face { font-family: "Great Vibes"; src: url(fonts/greatvibes.woff2) format("woff2"); }
 @font-face { font-family: "JetBrains Mono"; src: url(fonts/jetbrainsmono.woff2) format("woff2"); font-weight: 400 600; }
 
 :root {
@@ -142,6 +143,39 @@ body.shot .frame { border-radius: 0; box-shadow: none; width: 1920px; height: 10
 .m-tile.focus { filter: none; opacity: 1; transform: translateY(-22px); box-shadow: none; outline: 2px solid var(--ink); outline-offset: 8px; }
 .m-count { right: 140px; top: 900px; font-size: 18px; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: .08em; }
 
+/* ---- ocean (F): the rail over a graded wave photo, Great Vibes for the name ---- */
+.ocean { font-family: Outfit, sans-serif; --abyss: #03161D; --foam: #EAF7F4; --mist: #A9C7C4; --sand: #E8D3AE; color: var(--foam); }
+.o-greet { left: 140px; top: 40px; font: 44px/1.2 "Great Vibes", cursive; color: var(--foam); text-shadow: 0 2px 18px rgba(3,22,29,.7); }
+.o-right { right: 140px; top: 44px; display: flex; align-items: center; gap: 14px; }
+.o-time { font-size: 38px; font-weight: 300; margin-right: 6px; }
+.o-date { font-size: 15px; font-weight: 500; letter-spacing: .2em; color: var(--mist); margin-right: 18px; }
+.o-chip { height: 56px; min-width: 56px; padding: 0 20px; border-radius: 28px; border: 1.5px solid rgba(234,247,244,.3);
+          background: rgba(3,22,29,.35); display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 19px; font-weight: 500; }
+.o-chip.round { padding: 0; }
+.o-chip svg { width: 24px; height: 24px; }
+.o-eyebrow { left: 140px; top: 312px; font-size: 16px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--sand);
+             display: flex; align-items: center; gap: 12px; }
+.o-eyebrow i { width: 9px; height: 9px; border-radius: 50%; background: var(--logo); box-shadow: 0 0 12px var(--logo); }
+.o-name { left: 128px; top: 372px; font: 180px/1.08 "Great Vibes", cursive; white-space: nowrap; text-shadow: 0 4px 30px rgba(3,22,29,.65); }
+.o-hints { left: 140px; top: 608px; display: flex; gap: 44px; font-size: 20px; font-weight: 300; color: var(--mist); }
+.o-hints b { color: var(--sand); font-weight: 500; margin-right: 10px; }
+.o-shore { left: 0; top: 856px; width: 1920px; height: 24px; }
+.o-under { left: 0; top: 836px; width: 520px; height: 64px; border-radius: 50%; filter: blur(36px); opacity: .4;
+           background: var(--logo); transition: transform .3s cubic-bezier(.2,.8,.2,1), background .3s; }
+.o-rail { left: 0; top: 0; width: 100%; height: 100%; transition: transform .32s cubic-bezier(.2,.8,.2,1); }
+.o-tile { position: absolute; top: 698px; width: 288px; height: 162px; border-radius: 18px; background: center / cover no-repeat;
+          opacity: .72; transform-origin: 50% 100%; box-shadow: 0 10px 24px -12px rgba(3,22,29,.9);
+          transition: transform .3s cubic-bezier(.2,.8,.2,1), opacity .3s, box-shadow .3s; }
+.o-tile.focus { opacity: 1; transform: translateY(-30px) scale(1.1);
+                box-shadow: 0 0 0 3px var(--logo), 0 18px 46px -8px var(--logo), 0 0 90px 4px color-mix(in srgb, var(--logo) 38%, transparent); }
+.o-refl { position: absolute; top: 872px; width: 288px; height: 162px; border-radius: 18px; background: center / cover no-repeat;
+          transform: scaleY(-1); opacity: .16; filter: blur(4px); transform-origin: 50% 50%;
+          -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,.9), transparent 50%);
+                  mask-image: linear-gradient(to top, rgba(0,0,0,.9), transparent 50%);
+          transition: opacity .3s, transform .3s cubic-bezier(.2,.8,.2,1); }
+.o-refl.focus { opacity: .38; transform: translateY(14px) scale(1.1, -1.1); }
+.o-foot { left: 140px; top: 1002px; font-size: 16px; font-weight: 400; letter-spacing: .14em; color: var(--mist); }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -153,6 +187,7 @@ body.shot .frame { border-radius: 0; box-shadow: none; width: 1920px; height: 10
   <button data-v="c" aria-pressed="false">C · Hard Light rail</button>
   <button data-v="d" aria-pressed="false">D · Mono Dark</button>
   <button data-v="e" aria-pressed="false">E · Mono Light</button>
+  <button data-v="f" aria-pressed="false">F · Ocean</button>
 </div>
 
 <div class="viewport"><div class="frame" id="frame"><div class="stage" id="stage">
@@ -224,12 +259,34 @@ body.shot .frame { border-radius: 0; box-shadow: none; width: 1920px; height: 10
   <section class="view mono dark" id="v-d"></section>
   <section class="view mono light" id="v-e"></section>
 
+  <!-- F: Ocean, on the rail layout -->
+  <section class="view ocean" id="v-f">
+    <div class="wall" style="background-image:url(wallpaper-ocean.jpg)"></div>
+    <div class="abs o-greet">Good evening</div>
+    <div class="abs o-right">
+      <span class="o-time">19:36</span><span class="o-date">THU 22 OCT</span>
+      <span class="o-chip"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10v7h1.5a1 1 0 0 1 1 1v4.5a5 5 0 0 1-4 4.9V22h-7v-2.6a5 5 0 0 1-4-4.9V10a1 1 0 0 1 1-1H7zm2 2v5h6V4z"/></svg>Inputs</span>
+      <span class="o-chip round"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l-5 5 5 5M17 7l5 5-5 5"/></svg></span>
+      <span class="o-chip round"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg></span>
+    </div>
+    <div class="abs o-eyebrow"><i></i><span id="o-last"></span></div>
+    <div class="abs o-name" id="o-name"></div>
+    <div class="abs o-hints"><span><b>OK</b>Open</span><span><b>Hold OK</b>Options</span><span><b>Down</b>All apps</span></div>
+    <div class="abs o-under" id="o-under"></div>
+    <svg class="abs o-shore" viewBox="0 0 1920 24" preserveAspectRatio="none" aria-hidden="true">
+      <defs><linearGradient id="shoreFade" x1="0" x2="1"><stop offset="0" stop-color="#EAF7F4" stop-opacity="0"/><stop offset=".1" stop-color="#EAF7F4" stop-opacity=".45"/><stop offset=".9" stop-color="#EAF7F4" stop-opacity=".45"/><stop offset="1" stop-color="#EAF7F4" stop-opacity="0"/></linearGradient></defs>
+      <path id="shorePath" fill="none" stroke="url(#shoreFade)" stroke-width="1.5"/>
+    </svg>
+    <div class="abs o-rail" id="o-rail"></div>
+    <div class="abs o-foot">◀ ▶ Browse &nbsp;·&nbsp; ▼ All apps (8)</div>
+  </section>
+
 </div></div></div>
 
 <div class="notes">
   <div>
     <h2>How to use</h2>
-    <p><kbd>1</kbd> to <kbd>5</kbd> switch mockups; the arrow keys move focus like the D-pad.</p>
+    <p><kbd>1</kbd> to <kbd>6</kbd> switch mockups; the arrow keys move focus like the D-pad.</p>
   </div>
   <div class="note on" data-for="a">
     <h2>A · The stock launcher today, cinematic shelf</h2>
@@ -264,6 +321,15 @@ body.shot .frame { border-radius: 0; box-shadow: none; width: 1920px; height: 10
     <ul>
       <li>The same idea on white: near-black ink, light grey hairlines.</li>
       <li>Needs the fork's light mode (<code>surface_mode: light</code>): pills, focus and settings inverted.</li>
+    </ul>
+  </div>
+  <div class="note" data-for="f">
+    <h2>F · Ocean</h2>
+    <ul>
+      <li>A wave photo, graded to deep sea on the left and at the bottom so the name, hints and tiles read over it.</li>
+      <li>Great Vibes for the greeting and the app name; Outfit for everything else.</li>
+      <li>The focused tile's shadow takes its logo's colour, computed from the banner the way the launcher's <code>vividColor</code> does.</li>
+      <li>The horizon is a shoreline: a gentle wave instead of a straight line.</li>
     </ul>
   </div>
 </div>
@@ -324,11 +390,30 @@ for (const k of "de") {
   monos[k] = { v, rail, tiles };
 }
 
+// The colour the launcher's AppAdapter.vividColor() picks from each banner (12x12 sample, most vivid pixel).
+const LOGO = { netflix: "#EB323C", youtube: "#FF0B0B", disney: "#00A1B3", hbo: "#727B8C",
+               crunchyroll: "#FF5E00", downloader: "#F36A0E", odin: "#00CBCF", kick: "#42FB01" };
+
+// F: the ocean rail and its shoreline
+const oRail = document.getElementById("o-rail"), oTiles = [], oRefl = [];
+APPS.forEach((a, i) => {
+  const x = 140 + i * 320;
+  const r = document.createElement("div"); r.className = "o-refl"; r.style.left = x + "px"; r.style.backgroundImage = img(a);
+  const t = document.createElement("div"); t.className = "o-tile"; t.style.left = x + "px"; t.style.backgroundImage = img(a);
+  t.style.setProperty("--logo", LOGO[a.id]);
+  oRail.append(r, t); oTiles.push(t); oRefl.push(r);
+});
+{
+  let d = "M0 12";
+  for (let x = 0; x <= 1920; x += 16) d += ` L${x} ${(12 + 4 * Math.sin(x / 1920 * Math.PI * 9) + 1.5 * Math.sin(x / 1920 * Math.PI * 23)).toFixed(2)}`;
+  document.getElementById("shorePath").setAttribute("d", d);
+}
+
 const f0 = +(q.get("f") || 0);
-const state = { v: q.get("v") || "a", a: f0, b: f0, c: f0, d: f0, e: f0 };
+const state = { v: q.get("v") || "a", a: f0, b: f0, c: f0, d: f0, e: f0, f: f0 };
 
 function render() {
-  for (const k of "abcde") document.getElementById("v-" + k).classList.toggle("on", state.v === k);
+  for (const k of "abcdef") document.getElementById("v-" + k).classList.toggle("on", state.v === k);
   document.querySelectorAll(".bar button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === state.v));
   document.querySelectorAll(".note").forEach(n => n.classList.toggle("on", n.dataset.for === state.v));
 
@@ -355,6 +440,16 @@ function render() {
   document.getElementById("c-name").textContent = fc.name;
   document.getElementById("c-last").textContent = fc.last ? `LAST OPENED · ${fc.last.toUpperCase()}` : "INSTALLED APP";
 
+  const fo = APPS[state.f], oShift = Math.max(0, state.f - 3) * 320;
+  oTiles.forEach((t, i) => t.classList.toggle("focus", i === state.f));
+  oRefl.forEach((r, i) => r.classList.toggle("focus", i === state.f));
+  oRail.style.transform = `translateX(${-oShift}px)`;
+  const vf = document.getElementById("v-f");
+  vf.style.setProperty("--logo", LOGO[fo.id]);
+  document.getElementById("o-under").style.transform = `translateX(${140 + state.f * 320 - oShift - 116}px)`;
+  document.getElementById("o-name").textContent = fo.name;
+  document.getElementById("o-last").textContent = fo.last ? `Last opened · ${fo.last}` : "Installed";
+
   for (const k of "de") {
     const m = monos[k], i = state[k], a = APPS[i];
     m.tiles.forEach((t, n) => t.classList.toggle("focus", n === i));
@@ -373,13 +468,13 @@ function move(dx, dy) {
     if (dx && Math.floor(i / 4) !== Math.floor(state.b / 4)) i = state.b;
     if (i >= 0 && i < 8) state.b = i;
   }
-  if (v === "c" || v === "d" || v === "e") state[v] = Math.min(7, Math.max(0, state[v] + dx));
+  if ("cdef".includes(v)) state[v] = Math.min(7, Math.max(0, state[v] + dx));
   render();
 }
 addEventListener("keydown", e => {
   const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
   if (k) { e.preventDefault(); move(...k); }
-  if (["1", "2", "3", "4", "5"].includes(e.key)) { state.v = "abcde"[+e.key - 1]; render(); }
+  if (["1", "2", "3", "4", "5", "6"].includes(e.key)) { state.v = "abcdef"[+e.key - 1]; render(); }
 });
 document.querySelectorAll(".bar button").forEach(b => b.addEventListener("click", () => { state.v = b.dataset.v; render(); b.blur(); }));
 
