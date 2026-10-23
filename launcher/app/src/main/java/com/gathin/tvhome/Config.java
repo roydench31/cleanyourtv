@@ -185,6 +185,8 @@ final class Config {
     final boolean handleViewInputs;
     /** Hold OK on a tile opens a menu (Move, Remove from Home, App info) instead of App info (config.xml / theme tile_menu). */
     final boolean tileMenu;
+    /** The Hard Light rail layout and its look (theme layout, display_font, ink_color, ...); {@link RailStyle#CLASSIC} if unset. */
+    final RailStyle rail;
 
     private Config(List<String> dockApps, boolean fillDock, List<String> hiddenApps, List<String> libraryApps, String liveTvPackage,
                    String liveTvAction, String liveTvInputId, Map<String, String> launchActions, Map<String, String> appLabels,
@@ -198,7 +200,7 @@ final class Config {
                    Festival festival, int[] inputKeycodes, List<String> appKeys, String stockHomeRedirect,
                    List<RaceWeekend.Race> raceCalendar, boolean cinematicHome, boolean ambientGlow, boolean appGlow, int homeIdleClockMinutes,
                    boolean keyFilter, boolean dockGlass, String glowStyle, boolean wallpaperCaptions,
-                   boolean handleViewInputs, boolean tileMenu, boolean dockEvenPadding) {
+                   boolean handleViewInputs, boolean tileMenu, boolean dockEvenPadding, RailStyle rail) {
         this.handleViewInputs = handleViewInputs;
         this.tileMenu = tileMenu;
         this.inputKeycodes = inputKeycodes;
@@ -271,6 +273,7 @@ final class Config {
         this.dockEvenPadding = dockEvenPadding;
         this.glowStyle = glowStyle(glowStyle);
         this.wallpaperCaptions = wallpaperCaptions;
+        this.rail = rail;
     }
 
     /** A known glow_style, or radial (the default) for anything else. */
@@ -458,6 +461,13 @@ final class Config {
             wallpaper = chosen.isEmpty() ? null : chosen.get(0);
             wallpaperEnabled = !chosen.isEmpty();
         }
+        // The rail layout comes only from a theme. It is one row with no dock band, title or cinematic shelf.
+        RailStyle rail = json == null ? RailStyle.CLASSIC : rail(json);
+        if (rail.on) {
+            dockRow = false;
+            dockTitle = true;
+            cinematic = false;
+        }
         // A festive skin comes only from a theme; config.xml has no festival.
         Festival festival = json == null ? Festival.NONE : Festival.parse(string(json, "festival", ""),
                 string(json, "festival_until", ""), string(json, "greeting", ""), string(json, "accent_color", ""));
@@ -470,7 +480,19 @@ final class Config {
                 Math.max(0, Math.min(100, skyIntensity)), settingsKeycodes, settingsKeyPanel, restoreKeyServices, wallpaperEnabled, wallpaper,
                 wallpapers, rotationMinutes, wallpaperDim, dockOpacity, wallpaperOrder, applied,
                 festival, inputKeycodes, appKeys, stockHomeRedirect, json == null ? Collections.emptyList() : raceCalendar(json), cinematic, ambientGlow, appGlow,
-                Math.max(0, idleClockMinutes), keyFilter, dockGlass, glowStyle, wallpaperCaptions, handleViewInputs, tileMenu, dockEvenPadding);
+                Math.max(0, idleClockMinutes), keyFilter, dockGlass, glowStyle, wallpaperCaptions, handleViewInputs, tileMenu, dockEvenPadding, rail);
+    }
+
+    /** The rail keys of a theme (docs/hardlight/GUIDE.md, Appendix B); unknown values keep today's look. */
+    private static RailStyle rail(JSONObject json) {
+        return new RailStyle(RailStyle.rail(string(json, "layout", RailStyle.LAYOUT_CLASSIC)),
+                string(json, "display_font", RailStyle.FONT_OUTFIT),
+                color(json, "ink_color", 0), color(json, "muted_color", 0),
+                color(json, "highlight_color", 0), color(json, "hairline_color", 0),
+                bool(json, "hero_eyebrow", false), string(json, "control_hints", RailStyle.HINTS_NONE),
+                string(json, "focus_style", RailStyle.FOCUS_GLASS), integer(json, "tile_rest_alpha", 100, 30, 100),
+                bool(json, "horizon_line", false), string(json, "horizon_style", RailStyle.HORIZON_LINE),
+                bool(json, "tile_reflection", false), bool(json, "under_glow", false));
     }
 
     /**

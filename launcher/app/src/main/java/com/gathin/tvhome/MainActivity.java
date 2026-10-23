@@ -24,6 +24,7 @@ import android.graphics.Paint;
 import android.graphics.RadialGradient;
 import android.graphics.Rect;
 import android.graphics.Shader;
+import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -47,6 +48,7 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextPaint;
 import android.text.TextUtils;
@@ -66,6 +68,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.PopupWindow;
+import android.widget.TextClock;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -75,6 +78,7 @@ import androidx.dynamicanimation.animation.FloatPropertyCompat;
 import androidx.dynamicanimation.animation.SpringAnimation;
 import androidx.dynamicanimation.animation.SpringForce;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
@@ -142,6 +146,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private LinearLayout heroDots;
     /** Cinematic top shelf (config.xml, cinematic_home): the focused dock app's artwork behind a larger shelf. */
     private boolean cinematic;
+    /** The theme's rail layout (RailStyle, docs/hardlight/GUIDE.md): one row on a horizon; null for the dock and grid. */
+    private RailStyle rail;
+    private RailDecoration railDecoration;
+    /** Rail only: "Last opened · …" above the name, and the control hints under it. */
+    private TextView heroEyebrow, heroHints;
     /** config.xml ambient_glow, overridable by a theme. Off: the glow view is gone and no fade or colour animator
      *  is started for it, so a focus move costs nothing extra on a launcher that runs all day. */
     private boolean ambientGlow;
@@ -406,11 +415,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         cinematic = cfg.cinematicHome;
         glowStyle = cfg.glowStyle;
         if (cinematic) setUpCinematicShelf();
+        rail = cfg.rail.on ? cfg.rail : null;
         // dock_title false: the name above the dock (and the cinematic lines under it) never shows; the glow
         // still follows the dock.
         if (!cfg.dockTitle) hero.setVisibility(View.GONE);
         greeting = findViewById(R.id.greeting);
         clockBlock = findViewById(R.id.leftBlock);
+        if (rail != null) setUpRail();
         greetingColor = greeting.getCurrentTextColor();
         if (getResources().getBoolean(R.bool.rtl_menu_bar)) {
             // Center Hebrew greetings over the numeric time, independent of a visible AM/PM label.
@@ -447,7 +458,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         grid = findViewById(R.id.grid);
         rtlAppGrid = getResources().getBoolean(R.bool.rtl_app_grid);
         // Mirror only the app grid; the header and other locales keep their own layouts.
-        grid.setLayoutManager(new GridLayoutManager(this, COLUMNS) {
+        if (rail != null) {
+            // One row. Scrolling is onTileFocused's (the focused tile parks at RailStyle.FOCUS_SLOT); the stock
+            // "bring the tile on screen" scroll would fight it.
+            grid.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false) {
+                @Override
+                protected boolean isLayoutRTL() {
+                    return rtlAppGrid;
+                }
+
+                @Override
+                public boolean requestChildRectangleOnScreen(@NonNull RecyclerView parent, @NonNull View child,
+                                                             @NonNull Rect rect, boolean immediate,
+                                                             boolean focusedChildVisible) {
+                    return false;
+                }
+            });
+        } else grid.setLayoutManager(new GridLayoutManager(this, COLUMNS) {
             @Override
             protected boolean isLayoutRTL() {
                 return rtlAppGrid;
@@ -483,7 +510,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 return true;
             }
         });
-        ((GridLayoutManager) grid.getLayoutManager()).setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+        if (rail == null) ((GridLayoutManager) grid.getLayoutManager()).setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
             @Override public int getSpanSize(int position) { return adapter != null && adapter.isLibraryAt(position) ? COLUMNS : 1; }
         });
         grid.setHasFixedSize(true);
@@ -500,6 +527,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             public void onChildViewDetachedFromWindow(@NonNull View v) {
             }
         });
+        if (rail != null) {
+            railDecoration = new RailDecoration(rail, pos -> adapter == null ? 0 : adapter.ambientColorAt(pos),
+                    getResources().getDisplayMetrics().heightPixels / 1080f);
+            grid.addItemDecoration(railDecoration);
+        }
         if (dockRow) grid.addItemDecoration(new DockDecoration(COLUMNS, density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding));
         // Reduced motion: the tiles are simply there, with no entrance (reloadApps skips it there too).
         if (animations && !reducedMotion) {
@@ -517,6 +549,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // rows_below_dock grid rows under it; the rest of the grid stays below until you press Down.
         int rowsBelowDock = cfg.rowsBelowDock;
         grid.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (rail != null) {
+                placeRail();
+                return;
+            }
             int h = b - t;
             // Item height follows the tile size, which follows the columns and the rows that must fit (AppAdapter.tileWidthPx).
             int inner = (r - l) - grid.getPaddingLeft() - grid.getPaddingRight();
@@ -646,7 +682,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
-                focusTile(lastFocused % COLUMNS);
+                focusTile(rail != null ? lastFocused : lastFocused % COLUMNS);
                 return true;
             }
             int firstButton = btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : firstTopButton().getId();
@@ -1050,6 +1086,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         grid.getRecycledViewPool().clear();
         heroArtCache.clear();
         heroArtKey = null;
+        if (railDecoration != null) railDecoration.clear();
         tileRefresh.invalidate();
     }
 
@@ -1370,6 +1407,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // rtl_app_grid (Hebrew) mirrors the grid: position 0 is on the right, so Left moves towards the end.
         if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) to = rtlAppGrid ? from + 1 : from - 1;
         else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) to = rtlAppGrid ? from - 1 : from + 1;
+        else if (rail != null) to = from;
         else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) to = from - COLUMNS;
         else if (from + COLUMNS < n) to = from + COLUMNS;
         else to = from / COLUMNS < (n - 1) / COLUMNS ? n - 1 : from;
@@ -1388,10 +1426,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * afterwards if the moved tile itself ends up off screen.
      */
     private void keepScroll(Runnable change) {
-        GridLayoutManager lm = (GridLayoutManager) grid.getLayoutManager();
+        LinearLayoutManager lm = (LinearLayoutManager) grid.getLayoutManager();
         int first = lm.findFirstVisibleItemPosition();
         View firstView = first != RecyclerView.NO_POSITION ? lm.findViewByPosition(first) : null;
-        int offset = firstView != null ? lm.getDecoratedTop(firstView) - grid.getPaddingTop() : 0;
+        int offset = firstView == null ? 0 : rail != null ? lm.getDecoratedLeft(firstView) - grid.getPaddingLeft()
+                : lm.getDecoratedTop(firstView) - grid.getPaddingTop();
         change.run();
         if (firstView != null) lm.scrollToPositionWithOffset(first, offset);
     }
@@ -1458,6 +1497,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             card.post(() -> {
                 if (card.isFocused() && card.getWidth() > 0) onTileFocused(position, card);
             });
+            return;
+        }
+        if (rail != null) {
+            onRailTileFocused(position, (View) card.getParent());
             return;
         }
         // Tile rect in root coordinates, using layout positions (ignores the scale animation).
@@ -1545,12 +1588,218 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     }
 
+    // ---- rail layout (RailStyle, docs/hardlight/GUIDE.md) ------------------------------------------
+
+    /**
+     * The parts of the rail that never change: the header as one line (greeting at the left, time, date and
+     * buttons at the right), the hero's eyebrow and hints, its typeface and colours, and the full-width row.
+     */
+    private void setUpRail() {
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        float s = dm.heightPixels / 1080f;   // the mockups' pixels at 1080p
+        int margin = RailStyle.margin(dm.widthPixels);
+        int ink = RailStyle.or(rail.ink, 0xFFFFFFFF);
+        int muted = RailStyle.or(rail.muted, 0xB3FFFFFF);
+        Typeface script = rail.script() ? UiFont.get(this, R.string.font_script) : null;
+
+        // The content column loses its side padding, so the row runs to both screen edges; the header keeps the
+        // mockup's margin.
+        View header = (View) clockBlock.getParent();
+        View content = (View) header.getParent();
+        content.setPadding(0, Math.round(34 * s), 0, 0);
+        header.setPadding(margin, 0, margin, 0);
+
+        // Header: the greeting alone at the left (in script with a script theme), the clock row folded away.
+        ((View) findViewById(R.id.clock).getParent()).setVisibility(View.GONE);
+        greeting.setAllCaps(false);
+        greeting.setLetterSpacing(0f);
+        greeting.setTextColor(ink);
+        if (script != null) {
+            greeting.setTypeface(script);
+            greeting.setIncludeFontPadding(true);
+            greeting.setTextSize(TypedValue.COMPLEX_UNIT_PX, 44 * s);
+            greeting.setShadowLayer(18 * s, 0, 2 * s, 0xB303161D);
+        } else {
+            greeting.setTextSize(TypedValue.COMPLEX_UNIT_PX, 22 * s);
+        }
+        LinearLayout buttons = findViewById(R.id.topButtons);
+        buttons.setGravity(Gravity.CENTER_VERTICAL);
+        RelativeLayout.LayoutParams blp = (RelativeLayout.LayoutParams) buttons.getLayoutParams();
+        blp.removeRule(RelativeLayout.ALIGN_BOTTOM);
+        blp.addRule(RelativeLayout.CENTER_VERTICAL);
+        blp.bottomMargin = 0;
+        buttons.setLayoutParams(blp);
+        TextClock time = new TextClock(this);
+        time.setFormat12Hour("h:mm");
+        time.setFormat24Hour("HH:mm");
+        time.setTypeface(UiFont.get(this, R.string.font_light));
+        time.setTextColor(ink);
+        time.setTextSize(TypedValue.COMPLEX_UNIT_PX, 38 * s);
+        time.setIncludeFontPadding(false);
+        TextClock date = new TextClock(this);
+        date.setFormat12Hour("EEE d MMM");
+        date.setFormat24Hour("EEE d MMM");
+        date.setAllCaps(true);
+        date.setTypeface(UiFont.get(this, R.string.font_medium));
+        date.setTextColor(muted);
+        date.setLetterSpacing(0.2f);
+        date.setTextSize(TypedValue.COMPLEX_UNIT_PX, 15 * s);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tlp.setMarginEnd(Math.round(14 * s));
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        dlp.setMarginEnd(Math.round(18 * s));
+        buttons.addView(time, 0, tlp);
+        buttons.addView(date, 1, dlp);
+
+        // Hero: eyebrow, name, hints, at a fixed place (railHeroY) instead of above a dock.
+        LinearLayout heroGroup = (LinearLayout) hero;
+        FrameLayout.LayoutParams hlp = (FrameLayout.LayoutParams) hero.getLayoutParams();
+        hlp.setMarginStart(margin);
+        hero.setLayoutParams(hlp);
+        heroGroup.setClipChildren(false);
+        heroGroup.setClipToPadding(false);
+        heroMeta.setVisibility(View.GONE);
+        heroDots.setVisibility(View.GONE);
+        heroEyebrow = new TextView(this);
+        heroEyebrow.setTypeface(UiFont.get(this, R.string.font_medium));
+        heroEyebrow.setTextSize(TypedValue.COMPLEX_UNIT_PX, 16 * s);
+        heroEyebrow.setLetterSpacing(0.2f);
+        heroEyebrow.setSingleLine(true);
+        heroEyebrow.setTextColor(RailStyle.or(rail.highlight, ink));
+        heroEyebrow.setVisibility(rail.heroEyebrow ? View.VISIBLE : View.GONE);
+        heroGroup.addView(heroEyebrow, 0);
+        heroName.setTextColor(ink);
+        heroName.setShadowLayer(30 * s, 0, 4 * s, 0xA603161D);
+        heroName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        heroName.setMaxWidth(Math.round(dm.widthPixels * 0.62f));
+        LinearLayout.LayoutParams nlp = (LinearLayout.LayoutParams) heroName.getLayoutParams();
+        if (script != null) {
+            heroName.setTypeface(script);
+            heroName.setIncludeFontPadding(true);
+            heroName.setLetterSpacing(0f);
+            heroName.setTextSize(TypedValue.COMPLEX_UNIT_PX, 180 * s);
+            // Great Vibes' line box is deep below the baseline for its swashes; pull the hints up into it.
+            nlp.topMargin = Math.round(-12 * s);
+            nlp.bottomMargin = Math.round(-58 * s);
+            // A script capital's lead-in stroke reaches left of its advance: give it room inside the view (the
+            // hero is clipped to its bounds) and move the view left by as much, so the text stays where it was.
+            heroName.setPadding(Math.round(48 * s), 0, Math.round(24 * s), 0);
+            nlp.setMarginStart(Math.round(-60 * s));
+        } else {
+            heroName.setTypeface(UiFont.get(this, R.string.font_extralight));
+            heroName.setTextSize(TypedValue.COMPLEX_UNIT_PX, 150 * s);
+            heroName.setLetterSpacing(-0.03f);
+            nlp.topMargin = Math.round(18 * s);
+            nlp.setMarginStart(Math.round(-8 * s));
+        }
+        heroName.setLayoutParams(nlp);
+        heroHints = new TextView(this);
+        heroHints.setTypeface(UiFont.get(this, R.string.font_light));
+        heroHints.setTextSize(TypedValue.COMPLEX_UNIT_PX, 20 * s);
+        heroHints.setTextColor(muted);
+        heroHints.setSingleLine(true);
+        heroHints.setText(railHints(RailStyle.or(rail.highlight, ink)));
+        heroHints.setVisibility(RailStyle.HINTS_TEXT.equals(rail.hints) ? View.VISIBLE : View.GONE);
+        LinearLayout.LayoutParams ylp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        ylp.topMargin = Math.round(14 * s);
+        heroGroup.addView(heroHints, ylp);
+    }
+
+    /** "OK Open   Hold OK Options   Down All apps", the keys in the highlight colour. */
+    private CharSequence railHints(int keyColor) {
+        SpannableStringBuilder b = new SpannableStringBuilder();
+        int[][] pairs = {{R.string.rail_hint_ok, R.string.rail_hint_open}, {R.string.rail_hint_hold_ok, R.string.rail_hint_options},
+                {R.string.rail_hint_down, R.string.rail_hint_all_apps}};
+        for (int[] pair : pairs) {
+            if (b.length() > 0) b.append("\u2003\u2003");
+            int start = b.length();
+            b.append(getString(pair[0]));
+            b.setSpan(new ForegroundColorSpan(keyColor), start, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            b.append("\u2002").append(getString(pair[1]));
+        }
+        return b;
+    }
+
+    /** "● LAST OPENED · 5 MINUTES AGO", the dot in the app's colour; "● INSTALLED" for an app Home never opened. */
+    private void fillRailEyebrow(int position) {
+        if (heroEyebrow == null || !rail.heroEyebrow) return;
+        long when = LastOpened.get(this, adapter.packageAt(position));
+        String text = when > 0 ? getString(R.string.rail_last_opened, LastOpened.describe(this, when))
+                : getString(R.string.rail_installed);
+        SpannableStringBuilder b = new SpannableStringBuilder("\u25CF  ");
+        b.setSpan(new ForegroundColorSpan(adapter.ambientColorAt(position)), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        b.append(text.toUpperCase(java.util.Locale.getDefault()));
+        heroEyebrow.setText(b);
+    }
+
+    /** The hero's top on screen: y 312 of 1080, as in the mockups. */
+    private float railHeroY() {
+        return getResources().getDisplayMetrics().heightPixels * 312f / 1080f;
+    }
+
+    /** Puts the row's tiles on the horizon (RailStyle.horizonY), wherever the header leaves the grid. */
+    private void placeRail() {
+        View first = null;
+        for (int i = 0; i < grid.getChildCount() && first == null; i++) first = grid.getChildAt(i).findViewById(R.id.card);
+        int cardH = first != null ? first.getHeight()
+                : AppAdapter.tileHeightPx(RailStyle.tileWidth(getResources().getDisplayMetrics().widthPixels));
+        int itemPad = first != null ? ((View) first.getParent()).getPaddingTop() : Math.round(4 * density);
+        int[] at = new int[2];
+        grid.getLocationInWindow(at);
+        int[] rootAt = new int[2];
+        root.getLocationInWindow(rootAt);
+        int gridTop = at[1] - rootAt[1];
+        int want = RailStyle.horizonY(root.getHeight() > 0 ? root.getHeight() : getResources().getDisplayMetrics().heightPixels)
+                - gridTop - itemPad - cardH;
+        // The first tile's card starts at the mockup's margin: the item's half gap sits before it.
+        int screenW = getResources().getDisplayMetrics().widthPixels;
+        int start = RailStyle.margin(screenW) - RailStyle.gap(screenW) / 2;
+        int end = RailStyle.margin(screenW);
+        if (want < 0) want = grid.getPaddingTop();
+        if (grid.getPaddingTop() != want || grid.getPaddingLeft() != start || grid.getPaddingRight() != end) {
+            grid.setPadding(start, want, end, grid.getPaddingBottom());
+            // This runs inside a layout pass, where the padding's own relayout request is dropped: ask again
+            // once the pass is over, or the row stays at the top until something else lays it out.
+            grid.post(grid::requestLayout);
+        }
+    }
+
+    /** The rail's focus: the hero shows this app and the row scrolls so the tile sits at its slot. */
+    private void onRailTileFocused(int position, View item) {
+        showHero(position, 0f);
+        int pitch = item.getWidth();
+        if (pitch <= 0) return;
+        int desired = grid.getPaddingLeft() + Math.min(position, RailStyle.FOCUS_SLOT) * pitch;
+        int dx = item.getLeft() - desired;
+        if (dx == 0) {
+            grid.invalidate();
+            return;
+        }
+        if (!animations || reducedMotion) grid.scrollBy(dx, 0);
+        else grid.smoothScrollBy(dx, 0);
+    }
+
+    /** Left and Right walk the row and stop at its ends, Up goes to the buttons, Down opens the App library. */
+    private boolean onRailKey(int position, int count, int keyCode) {
+        if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return false;
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            onLibraryRequested();
+            return true;
+        }
+        boolean forward = rtlAppGrid ? keyCode == KeyEvent.KEYCODE_DPAD_LEFT : keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
+        int target = position + (forward ? 1 : -1);
+        if (target < 0 || target >= count) return true;
+        focusTile(target);
+        grid.playSoundEffect(forward ? SoundEffectConstants.NAVIGATION_RIGHT : SoundEffectConstants.NAVIGATION_LEFT);
+        return true;
+    }
+
     // ---- top shelf -------------------------------------------------------------------------------
 
     private void showHero(int position, float dockTopInRoot) {
         String label = adapter.labelAt(position);
         int color = adapter.ambientColorAt(position);
-        float y = dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
+        float y = rail != null ? railHeroY() : dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
         boolean changed = !label.contentEquals(heroName.getText());
         if (cinematic) showHeroArt(position);
 
@@ -1608,6 +1857,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** The shelf's text for this dock app: its name and, on the cinematic shelf, "Last opened" and the dots. */
     private void fillHero(int position, String label) {
         heroName.setText(label);
+        if (rail != null) fillRailEyebrow(position);
         if (!cinematic) return;
         updateHeroMeta(position);
         updateHeroDots(position);
@@ -2056,6 +2306,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     public boolean onTileVerticalKey(int position, int keyCode) {
         int count = adapter.appCount();
         int target;
+        if (rail != null) return onRailKey(position, count, keyCode);
         // Horizontal: swallow the key at a row's ends so focus never wraps to the next row or
         // escapes up into the top bar. Mid-row moves fall through to the default focus search.
         if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {

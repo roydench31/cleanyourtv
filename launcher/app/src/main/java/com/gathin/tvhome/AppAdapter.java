@@ -209,6 +209,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     /** Tile names and bundled banners that replace the app's own (config.xml, app_labels and app_banners). */
     private final Map<String, String> appLabels, appBanners;
     private final List<Entry> items = new ArrayList<>();
+    /** The theme's rail layout (RailStyle); null for the dock and grid. */
+    private final RailStyle rail;
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
         this.ctx = ctx;
@@ -221,7 +223,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.animations = cfg.animations;
         this.advancedEffects = cfg.animations && cfg.advancedEffects;
         this.showHomeSettings = cfg.showHomeSettingsShortcut;
-        this.showLibrary = cfg.appLibrary;
+        this.rail = cfg.rail.on ? cfg.rail : null;
+        // The rail opens the App library with Down; a library pill at the end of the row would be one more tile.
+        this.showLibrary = cfg.appLibrary && rail == null;
         this.reducedMotion = cfg.reducedMotion;
         this.focusOvershoot = cfg.focusOvershoot;
         this.rowsBelowDock = cfg.rowsBelowDock;
@@ -402,7 +406,22 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             v.setPadding(v.getPaddingLeft(), pad, v.getPaddingRight(), pad);
         }
         name.setLayoutParams(nameLp);
-        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
+        if (rail != null) {
+            // One row: a fixed tile size from the screen, the gap split around it, no name (the hero shows it),
+            // and the zoom anchored at the tile's foot so it grows up off the horizon.
+            int screenW = parent.getResources().getDisplayMetrics().widthPixels;
+            int rw = RailStyle.tileWidth(screenW), rh = tileHeightPx(rw);
+            cardLp.width = rw;
+            cardLp.height = rh;
+            card.setLayoutParams(cardLp);
+            ViewGroup.LayoutParams itemLp = v.getLayoutParams();
+            itemLp.width = rw + RailStyle.gap(screenW);
+            v.setLayoutParams(itemLp);
+            name.setVisibility(View.GONE);
+            card.setPivotX(rw / 2f);
+            card.setPivotY(rh);
+        }
+        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot, rail);
     }
 
     @Override
@@ -434,6 +453,15 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         h.card.setTranslationZ(focused && advancedEffects ? 8f * ctx.getResources().getDisplayMetrics().density : 0f);
         h.banner.setScaleX(focused && advancedEffects ? 1.035f : 1f);
         h.banner.setScaleY(focused && advancedEffects ? 1.035f : 1f);
+        if (rail != null) {
+            float rise = RailStyle.rise(ctx.getResources().getDisplayMetrics().heightPixels);
+            h.name.setVisibility(View.GONE);
+            h.card.setScaleX(focused && animations ? RailStyle.FOCUS_SCALE : 1f);
+            h.card.setScaleY(focused && animations ? RailStyle.FOCUS_SCALE : 1f);
+            h.card.setTranslationY(focused ? -rise : 0f);
+            h.card.setTranslationZ(0f);
+            h.card.setAlpha(focused ? 1f : rail.restAlpha / 100f);
+        }
         // A fully opaque banner covers the whole card (centerCrop), so the card's own fill under it is drawn for
         // nothing on every frame; keep it under banners with transparent parts and under icon tiles.
         h.card.setBackground(e.banner != null && e.banner.getOpacity() == PixelFormat.OPAQUE ? null : h.cardBackground);
@@ -489,7 +517,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         try {
             ctx.startActivity(i);
-            if (cinematic) LastOpened.record(ctx, e.pkg);
+            if (cinematic || rail != null) LastOpened.record(ctx, e.pkg);
             if (advancedEffects && !reducedMotion && ctx instanceof Activity) {
                 ((Activity) ctx).overridePendingTransition(R.anim.app_open_enter, R.anim.app_open_exit);
             }
@@ -687,10 +715,13 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         /** Alpha of the name while the tile is not focused (always_show_names). */
         final float restNameAlpha;
         final boolean overshoot;
+        /** The rail layout, or null. */
+        final RailStyle rail;
 
         Holder(View v, TileListener listener, boolean animations, boolean advancedEffects,
-               boolean reducedMotion, float restNameAlpha, boolean overshoot) {
+               boolean reducedMotion, float restNameAlpha, boolean overshoot, RailStyle rail) {
             super(v);
+            this.rail = rail;
             card = v.findViewById(R.id.card);
             cardBackground = card.getBackground();
             banner = v.findViewById(R.id.banner);
@@ -725,6 +756,12 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 view.animate().cancel();
                 banner.animate().cancel();
                 name.animate().cancel();
+                if (rail != null) {
+                    railFocus(view, focused);
+                    int pos = getBindingAdapterPosition();
+                    if (focused && listener != null && pos != RecyclerView.NO_POSITION) listener.onTileFocused(pos, view);
+                    return;
+                }
                 float scale = !animations ? 1f : advancedEffects ? 1.12f : 1.10f;
                 float s = focused ? scale : 1f;
                 if (!animations) {
@@ -771,6 +808,34 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     listener.onTileFocused(pos, view);
                 }
             });
+        }
+
+        /**
+         * The rail's focus: the tile rises off the horizon and zooms from its foot; the others rest dimmed. The row
+         * redraws on each frame so RailDecoration's halo, reflection and glow follow the tile.
+         */
+        private void railFocus(View view, boolean focused) {
+            float rise = RailStyle.rise(view.getResources().getDisplayMetrics().heightPixels);
+            float s = focused && animations ? RailStyle.FOCUS_SCALE : 1f;
+            float y = focused ? -rise : 0f;
+            float a = focused ? 1f : rail.restAlpha / 100f;
+            View row = (View) itemView.getParent();
+            if (!animations || reducedMotion) {
+                view.setScaleX(s);
+                view.setScaleY(s);
+                view.setTranslationY(y);
+                view.setAlpha(a);
+                if (row != null) row.invalidate();
+                return;
+            }
+            view.animate().scaleX(s).scaleY(s).translationY(y).alpha(a)
+                    .setDuration(focused ? 260 : 200)
+                    .setInterpolator(new DecelerateInterpolator(1.5f))
+                    .setUpdateListener(anim -> {
+                        View r = (View) itemView.getParent();
+                        if (r != null) r.invalidate();
+                    })
+                    .start();
         }
     }
 }

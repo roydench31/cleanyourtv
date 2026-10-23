@@ -23,7 +23,8 @@ PY=venv/bin/python
 [ -x "$PY" ] || PY=venv/Scripts/python.exe
 [ -x "$PY" ] || { echo "run: python3 -m venv tools/venv && tools/venv/bin/pip install -r tools/requirements.txt" >&2; exit 1; }
 export MSYS_NO_PATHCONV=1
-PKG=com.gathin.tvhome
+# LAUNCHER_PKG: a launcher installed under another package, e.g. a fork (launcher/build-and-install.sh).
+PKG=${LAUNCHER_PKG:-com.gathin.tvhome}
 DIR=/sdcard/Android/data/$PKG/files
 # A unique marker lets the launcher clear on-TV layout/motion choices after every theme push,
 # including a push of identical config.json bytes and --reset.

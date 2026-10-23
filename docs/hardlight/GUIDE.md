@@ -7,12 +7,45 @@ on a cold void), **Mono** in dark and light, and **Ocean** (a wave photo, a scri
 shadows in each app's own colour).
 
 This guide says, in order, what to change in `launcher/` to get there. Each section has a goal, the files and
-methods it touches, the steps, and how to check the result. Nothing here is implemented yet: the mockups and
-themes in this folder are the target.
+methods it touches, the steps, and how to check the result. The mockups and themes in this folder are the
+target; [Implementation status](#implementation-status) says what this branch already does.
 
 > Line numbers refer to upstream `main` at the time of writing (launcher `versionName 2.6`). Method names are
 > given too, so you can find the spot when lines drift. Paths are relative to `launcher/app/src/main/` unless
 > they start with `launcher/`, `tools/`, `tests/` or `docs/`.
+
+## Implementation status
+
+The subset the **Ocean** theme needs is implemented on this branch and running on a Xiaomi MiTV-MOOR4 (Google TV,
+Android 11, 1920×1080 at density 320), installed as `com.roydench.hardlight` next to the original launcher.
+
+| Done | Where |
+|---|---|
+| `layout: rail`: one horizontal row parked on the horizon, the focused tile at the 4th slot, Left/Right stop at the ends, Up to the buttons, Down opens the App library | `MainActivity` (`setUpRail`, `placeRail`, `onRailTileFocused`, `onRailKey`), `AppAdapter` |
+| Top rail: greeting at the left, time, short date and buttons at the right | `MainActivity.setUpRail` (built in code, so `layout-iw` is untouched) |
+| Hero: eyebrow ("Last opened · …", launches recorded in every layout), name in Great Vibes, text hints | `MainActivity` (`fillRailEyebrow`, `railHints`), `res/font/greatvibes_regular.ttf` |
+| Colours: `ink_color`, `muted_color`, `highlight_color`, `hairline_color` | `RailStyle`, `Config.rail(...)` |
+| Focus: rise, 1.1 zoom from the tile's foot, rest alpha | `AppAdapter.Holder.railFocus` |
+| `focus_style: halo` in the logo's colour, `under_glow`, `tile_reflection`, `horizon_line` + `horizon_style: wave` | `RailDecoration` |
+| `LAUNCHER_PKG` for `build-and-install.sh` and `tools/theme.sh` | section 2 |
+| JVM tests for the parsers and the geometry | `RailStyleTest` |
+
+**Not yet:** `surface_mode: light`, Tektur, `focus_style: outline`, `tile_rest_grayscale`, `header_mark`,
+`control_hints: glyphs`, the Launcher settings Layout row. So Hard Light, Mono Dark and Mono Light are still
+targets. In the rail, `focus_style: glass` falls back to a white halo.
+
+**What the real TV taught us** (worth knowing before you continue):
+- The APK grows from 482,051 to about 531,700 bytes, almost all of it the Great Vibes subset. That is over
+  upstream's 480 KB gate (491,520 B). The gate guards 1 GB TVs in CI; this fork knowingly goes past it.
+- With another `applicationId` the classes stay in `com.gathin.tvhome`, so `pkg/.MainActivity` does not exist.
+  The install script names the activity in full (`$PKG/com.gathin.tvhome.MainActivity`).
+- Setting the row's padding inside its own `OnLayoutChangeListener` is dropped: the row stayed at the top until
+  something else laid it out. `placeRail` posts a `requestLayout()` after it.
+- A script face reaches outside its advance: the hero name gets inner padding on the left, and a negative
+  bottom margin pulls the hints up into Great Vibes' deep line box.
+- The original launcher's key helpers (`InputKeyService`, `HomeKeyService`) can stay enabled under
+  `com.gathin.tvhome`. They keep handling the remote's app buttons; the Home button goes to whichever app is
+  the default Home.
 
 ## Contents
 

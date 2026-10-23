@@ -145,4 +145,13 @@
     <!-- Cinematic top shelf (cinematic_home): the line under the focused dock app's name; %1$s is when it was
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Last opened %1$s</string>
+    <!-- Rail layout (docs/hardlight/GUIDE.md): the eyebrow above the app name, and the control hints under it. -->
+    <string name="rail_last_opened">Last opened · %1$s</string>
+    <string name="rail_installed">Installed</string>
+    <string name="rail_hint_ok">OK</string>
+    <string name="rail_hint_open">Open</string>
+    <string name="rail_hint_hold_ok">Hold OK</string>
+    <string name="rail_hint_options">Options</string>
+    <string name="rail_hint_down">Down</string>
+    <string name="rail_hint_all_apps">All apps</string>
 </resources>
