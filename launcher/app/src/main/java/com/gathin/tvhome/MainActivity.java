@@ -1612,6 +1612,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // Header: the greeting alone at the left (in script with a script theme), the clock row folded away.
         ((View) findViewById(R.id.clock).getParent()).setVisibility(View.GONE);
         greeting.setAllCaps(false);
+        greeting.setPadding(Math.round(5 * s), greeting.getPaddingTop(), greeting.getPaddingRight(), greeting.getPaddingBottom());
         greeting.setLetterSpacing(0f);
         greeting.setTextColor(ink);
         if (script != null) {
@@ -1682,13 +1683,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             nlp.topMargin = Math.round(-12 * s);
             nlp.bottomMargin = Math.round(-58 * s);
             // A script capital's lead-in stroke reaches left of its advance: give it room inside the view (the
-            // hero is clipped to its bounds) and move the view left by as much, so the text stays where it was.
-            heroName.setPadding(Math.round(48 * s), 0, Math.round(24 * s), 0);
+            // hero is clipped to its bounds) and move the view left by as much, so the text stays where it was;
+            // then 5px more on the left and 15px under the name, so it sits a little in from the edge and off the hints.
+            heroName.setPadding(Math.round((48 + 5) * s), 0, Math.round(24 * s), Math.round(15 * s));
             nlp.setMarginStart(Math.round(-60 * s));
         } else {
             heroName.setTypeface(UiFont.get(this, R.string.font_extralight));
             heroName.setTextSize(TypedValue.COMPLEX_UNIT_PX, 150 * s);
             heroName.setLetterSpacing(-0.03f);
+            heroName.setPadding(Math.round(5 * s), 0, 0, Math.round(15 * s));
             nlp.topMargin = Math.round(18 * s);
             nlp.setMarginStart(Math.round(-8 * s));
         }
