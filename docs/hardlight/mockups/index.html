@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hard Light Mockups</title>
+<style>
+@font-face { font-family: Outfit; src: url(fonts/outfit.ttf); font-weight: 100 900; }
+@font-face { font-family: Tektur; src: url(fonts/tektur.woff2) format("woff2"); font-weight: 400 700; }
+@font-face { font-family: "Instrument Sans"; src: url(fonts/instrumentsans.woff2) format("woff2"); font-weight: 400 600; }
+@font-face { font-family: "JetBrains Mono"; src: url(fonts/jetbrainsmono.woff2) format("woff2"); font-weight: 400 600; }
+
+:root {
+  --void: #04050A;
+  --graphite: #0E1120;
+  --mint: #3DF5C4;
+  --coral: #FF4A5C;
+  --ice: #6FA8FF;
+  --orchid: #FF78D2;
+  --frost: #E9EDF7;
+  --page: #08090F;
+  --page-ink: #C9CEDB;
+  --page-dim: #7C8296;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { background: var(--page); color: var(--page-ink); font-family: "Instrument Sans", system-ui, sans-serif; }
+
+/* ---- page chrome (hidden in ?shot mode) ---- */
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 16px; max-width: 1920px; margin: 0 auto; }
+.bar h1 { font: 500 15px/1 "JetBrains Mono", monospace; letter-spacing: .12em; text-transform: uppercase; margin-right: auto; }
+.bar h1 span { color: var(--mint); } .bar h1 span + span { color: var(--coral); } .bar h1 span + span + span { color: var(--ice); } .bar h1 span + span + span + span { color: var(--orchid); }
+.bar button { font: 500 14px/1 "Instrument Sans", sans-serif; color: var(--page-ink); background: transparent; border: 1px solid #2A2F40; border-radius: 999px; padding: 10px 16px; cursor: pointer; }
+.bar button[aria-pressed="true"] { background: var(--frost); color: var(--void); border-color: var(--frost); }
+.bar button:focus-visible { outline: 2px solid var(--ice); outline-offset: 2px; }
+.viewport { padding: 0 16px; max-width: 1952px; margin: 0 auto; }
+.frame { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 10px; box-shadow: 0 0 0 1px #1C2030; }
+.notes { max-width: 1920px; margin: 20px auto 48px; padding: 0 16px; display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); font-size: 15px; line-height: 1.55; }
+.notes h2 { font: 500 12px/1 "JetBrains Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--page-dim); margin-bottom: 10px; }
+.notes ul { padding-left: 18px; } .notes li { margin: 4px 0; }
+.notes code { font: 13px "JetBrains Mono", monospace; color: var(--frost); }
+.note { display: none; } .note.on { display: block; }
+kbd { font: 12px "JetBrains Mono", monospace; border: 1px solid #2A2F40; border-radius: 4px; padding: 1px 5px; }
+
+body.shot .bar, body.shot .notes { display: none; }
+body.shot .viewport { padding: 0; max-width: none; }
+body.shot .frame { border-radius: 0; box-shadow: none; width: 1920px; height: 1080px; }
+
+/* ---- the 1920x1080 stage ---- */
+.stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden; background: var(--void); color: #fff; }
+.view { position: absolute; inset: 0; display: none; }
+.view.on { display: block; }
+.abs { position: absolute; }
+.wall { position: absolute; inset: 0; background: center / cover no-repeat; }
+
+/* launcher replica (A, B): Outfit, sizes measured from the TV's own screenshots */
+.launcher { font-family: Outfit, sans-serif; }
+.greet { left: 123px; top: 52px; font-size: 25px; font-weight: 400; letter-spacing: .26em; color: rgba(255,255,255,.72); }
+.clock { left: 110px; top: 88px; font-size: 108px; font-weight: 200; letter-spacing: -.035em; line-height: 1.15; }
+.divider { left: 372px; top: 145px; width: 2px; height: 52px; background: rgba(255,255,255,.25); }
+.date { left: 409px; top: 158px; font-size: 28px; font-weight: 400; letter-spacing: .17em; color: rgba(255,255,255,.82); }
+.pill { top: 118px; height: 83px; border-radius: 42px; border: 2px solid rgba(255,255,255,.2); background: rgba(255,255,255,.07);
+        display: flex; align-items: center; justify-content: center; gap: 18px; font-size: 30px; font-weight: 500; color: #fff; }
+.pill svg { width: 34px; height: 34px; }
+.p-inputs { left: 1383px; width: 216px; }
+.p-net { left: 1621px; width: 83px; }
+.p-set { left: 1725px; width: 83px; }
+
+.heroart { position: absolute; inset: -160px; background: center / 100% 100% no-repeat; filter: blur(90px) saturate(1.7);
+           opacity: .5; transition: opacity .42s, background-image .14s;
+           -webkit-mask-image: linear-gradient(to bottom, #000 12%, rgba(0,0,0,.6) 52%, transparent 78%);
+                   mask-image: linear-gradient(to bottom, #000 12%, rgba(0,0,0,.6) 52%, transparent 78%); }
+.hero-name { left: 136px; top: 372px; font-size: 140px; font-weight: 300; letter-spacing: -.02em; line-height: 1.2; white-space: nowrap; }
+.hero-last { left: 145px; top: 562px; font-size: 31px; font-weight: 300; color: rgba(255,255,255,.8); }
+.hero-last b { font-weight: 400; color: #fff; }
+.dots { left: 144px; top: 632px; display: flex; gap: 14px; align-items: center; }
+.dots i { width: 10px; height: 10px; border-radius: 5px; background: rgba(255,255,255,.4); transition: width .2s; }
+.dots i.on { width: 40px; background: #fff; }
+
+.band { border-radius: 62px; border: 2px solid rgba(255,255,255,.2); background: rgba(255,255,255,.055); }
+.tile { position: absolute; width: 354px; height: 199px; border-radius: 22px; background: center / cover no-repeat;
+        transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s; }
+.tile.focus { transform: scale(1.12); z-index: 2;
+              box-shadow: 0 0 0 4px #fff, 0 0 34px 8px var(--glow), 0 0 90px 10px color-mix(in srgb, var(--glow) 45%, transparent); }
+.tname { position: absolute; width: 354px; text-align: center; font-size: 27px; font-weight: 400; color: rgba(255,255,255,.8); }
+
+/* ---- concept (C) ---- */
+.concept { font-family: "Instrument Sans", sans-serif; color: var(--frost); }
+.c-mark { left: 140px; top: 62px; display: flex; gap: 10px; font: 500 22px/1 "JetBrains Mono", monospace; }
+.c-mark .t { color: var(--mint); } .c-mark .c { color: var(--coral); } .c-mark .x { color: var(--ice); } .c-mark .s { color: var(--orchid); }
+.c-greet { left: 262px; top: 61px; font-size: 22px; color: rgba(233,237,247,.62); }
+.c-right { right: 140px; top: 44px; display: flex; align-items: center; gap: 14px; }
+.c-time { font: 500 40px/1 Tektur, sans-serif; letter-spacing: .02em; margin-right: 6px; }
+.c-date { font: 500 16px/1 "JetBrains Mono", monospace; letter-spacing: .14em; color: rgba(233,237,247,.6); margin-right: 18px; }
+.c-chip { height: 56px; min-width: 56px; padding: 0 18px; border-radius: 28px; border: 1.5px solid rgba(233,237,247,.22);
+          display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 19px; font-weight: 500; }
+.c-chip svg { width: 24px; height: 24px; }
+.c-chip.round { padding: 0; }
+
+.c-eyebrow { left: 140px; top: 336px; font: 500 17px/1 "JetBrains Mono", monospace; letter-spacing: .16em; color: rgba(233,237,247,.66);
+             display: flex; align-items: center; gap: 12px; }
+.c-eyebrow i { width: 9px; height: 9px; border-radius: 50%; background: var(--glow); box-shadow: 0 0 12px var(--glow); }
+.c-name { left: 132px; top: 362px; font: 500 172px/1.1 Tektur, sans-serif; letter-spacing: -.015em; white-space: nowrap; }
+.c-hints { left: 140px; top: 576px; display: flex; gap: 34px; font-size: 21px; color: rgba(233,237,247,.78); }
+.c-hints span { display: flex; align-items: center; gap: 10px; }
+.key { width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid currentColor; display: grid; place-items: center;
+       font: 500 17px/1 "JetBrains Mono", monospace; }
+.key.x { color: var(--ice); } .key.t { color: var(--mint); } .key.c { color: var(--coral); }
+
+.c-horizon { left: 0; right: 0; top: 868px; height: 1px;
+             background: linear-gradient(90deg, transparent, rgba(233,237,247,.28) 12%, rgba(233,237,247,.28) 88%, transparent); }
+.c-under { left: 0; top: 836px; width: 520px; height: 64px; border-radius: 50%; filter: blur(36px); opacity: .32;
+           background: var(--glow); transition: transform .3s cubic-bezier(.2,.8,.2,1), background .3s; }
+.c-rail { left: 0; top: 0; width: 100%; height: 100%; transition: transform .32s cubic-bezier(.2,.8,.2,1); }
+.c-tile { position: absolute; top: 698px; width: 288px; height: 162px; border-radius: 14px; background: center / cover no-repeat;
+          transition: transform .3s cubic-bezier(.2,.8,.2,1), opacity .3s, box-shadow .3s; opacity: .62; transform-origin: 50% 100%; }
+.c-tile.focus { opacity: 1; transform: translateY(-30px) scale(1.1);
+                box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 18px 60px -10px var(--glow); }
+.c-refl { position: absolute; top: 870px; width: 288px; height: 162px; border-radius: 14px; background: center / cover no-repeat;
+          transform: scaleY(-1); opacity: .18; filter: blur(3px); transform-origin: 50% 50%;
+          -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,.9), transparent 55%);
+                  mask-image: linear-gradient(to top, rgba(0,0,0,.9), transparent 55%);
+          transition: opacity .3s, transform .3s cubic-bezier(.2,.8,.2,1); }
+.c-refl.focus { opacity: .4; transform: translateY(14px) scale(1.1, -1.1); }
+.c-foot { left: 140px; top: 1002px; font: 500 15px/1 "JetBrains Mono", monospace; letter-spacing: .16em; color: rgba(233,237,247,.42); }
+
+/* ---- mono (D dark, E light): no colour except the focused app ---- */
+.mono { font-family: Outfit, sans-serif; background: var(--surf); color: var(--ink); }
+.mono.dark { --surf: #000000; --ink: #FFFFFF; --muted: #7A7A7A; --hair: #262626; --rest: .42; }
+.mono.light { --surf: #FFFFFF; --ink: #0A0A0A; --muted: #8C8C8C; --hair: #E2E2E2; --rest: .5; }
+.m-greet { left: 140px; top: 66px; font-size: 22px; font-weight: 300; color: var(--muted); }
+.m-right { right: 140px; top: 56px; display: flex; gap: 40px; align-items: baseline; font-size: 20px; font-weight: 400; color: var(--muted); }
+.m-time { font-size: 34px; font-weight: 300; color: var(--ink); margin-right: -16px; }
+.m-eyebrow { left: 140px; top: 352px; font-size: 16px; font-weight: 400; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.m-name { left: 126px; top: 368px; font-size: 190px; font-weight: 200; letter-spacing: -.045em; line-height: 1.05; white-space: nowrap; }
+.m-hints { left: 140px; top: 592px; display: flex; gap: 44px; font-size: 20px; font-weight: 300; color: var(--muted); }
+.m-hints b { color: var(--ink); font-weight: 500; margin-right: 10px; }
+.m-horizon { left: 140px; right: 140px; top: 868px; height: 1px; background: var(--hair); }
+.m-rail { left: 0; top: 0; width: 100%; height: 100%; transition: transform .32s cubic-bezier(.2,.8,.2,1); }
+.m-tile { position: absolute; top: 698px; width: 288px; height: 162px; border-radius: 6px; background: center / cover no-repeat;
+          filter: grayscale(1); opacity: var(--rest); box-shadow: 0 0 0 1px var(--hair);
+          transition: transform .3s cubic-bezier(.2,.8,.2,1), opacity .3s, filter .3s; }
+.m-tile.focus { filter: none; opacity: 1; transform: translateY(-22px); box-shadow: none; outline: 2px solid var(--ink); outline-offset: 8px; }
+.m-count { right: 140px; top: 900px; font-size: 18px; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: .08em; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1><span>△</span><span>○</span><span>✕</span><span>□</span> &nbsp;Hard Light</h1>
+  <button data-v="a" aria-pressed="true">A · Today, cinematic</button>
+  <button data-v="b" aria-pressed="false">B · Today, classic</button>
+  <button data-v="c" aria-pressed="false">C · Hard Light rail</button>
+  <button data-v="d" aria-pressed="false">D · Mono Dark</button>
+  <button data-v="e" aria-pressed="false">E · Mono Light</button>
+</div>
+
+<div class="viewport"><div class="frame" id="frame"><div class="stage" id="stage">
+
+  <!-- A: cinematic shelf, as the launcher draws it today -->
+  <section class="view launcher" id="v-a">
+    <div class="wall" style="background-image:url(wallpaper.jpg)"></div>
+    <div class="heroart" id="a-art"></div>
+    <div class="abs band" style="left:118px;top:695px;width:1684px;height:256px"></div>
+    <div id="a-tiles"></div>
+    <div class="abs hero-name" id="a-name"></div>
+    <div class="abs hero-last" id="a-last"></div>
+    <div class="abs dots" id="a-dots"><i></i><i></i><i></i><i></i></div>
+  </section>
+
+  <!-- B: classic dock row and grid, as the launcher draws it today -->
+  <section class="view launcher" id="v-b">
+    <div class="wall" style="background-image:url(wallpaper.jpg)"></div>
+    <div class="abs band" style="left:118px;top:450px;width:1684px;height:256px"></div>
+    <div id="b-tiles"></div>
+  </section>
+
+  <!-- shared launcher header for A and B (moved in by script) -->
+  <template id="hdr">
+    <div class="abs greet">GOOD EVENING</div>
+    <div class="abs clock">19:36</div>
+    <div class="abs divider"></div>
+    <div class="abs date">THURSDAY 22 OCTOBER</div>
+    <div class="abs pill p-inputs"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10v7h1.5a1 1 0 0 1 1 1v4.5a5 5 0 0 1-4 4.9V22h-7v-2.6a5 5 0 0 1-4-4.9V10a1 1 0 0 1 1-1H7zm2 2v5h6V4zm.5 1h1.5v2.5H9.5zm3.5 0h1.5v2.5H13z"/></svg>Inputs</div>
+    <div class="abs pill p-net"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l-5 5 5 5M17 7l5 5-5 5"/><circle cx="9" cy="12" r=".6" fill="currentColor"/><circle cx="12" cy="12" r=".6" fill="currentColor"/><circle cx="15" cy="12" r=".6" fill="currentColor"/></svg></div>
+    <div class="abs pill p-set"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></div>
+  </template>
+
+  <!-- C: the PS7 concept, what the launcher could become -->
+  <section class="view concept" id="v-c">
+    <div class="wall" style="background-image:url(wallpaper-concept.jpg)"></div>
+    <div class="abs c-mark" aria-label="Home"><span class="t">△</span><span class="c">○</span><span class="x">✕</span><span class="s">□</span></div>
+    <div class="abs c-greet">Good evening</div>
+    <div class="abs c-right">
+      <span class="c-time">19:36</span><span class="c-date">THU 22 OCT</span>
+      <span class="c-chip"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10v7h1.5a1 1 0 0 1 1 1v4.5a5 5 0 0 1-4 4.9V22h-7v-2.6a5 5 0 0 1-4-4.9V10a1 1 0 0 1 1-1H7zm2 2v5h6V4z"/></svg>HDMI 1</span>
+      <span class="c-chip round"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l-5 5 5 5M17 7l5 5-5 5"/></svg></span>
+      <span class="c-chip round"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg></span>
+    </div>
+    <div class="abs c-eyebrow"><i></i><span id="c-last"></span></div>
+    <div class="abs c-name" id="c-name"></div>
+    <div class="abs c-hints">
+      <span><b class="key x">✕</b>Open</span>
+      <span><b class="key t">△</b>Options</span>
+      <span><b class="key c">○</b>Back</span>
+    </div>
+    <div class="abs c-under" id="c-under"></div>
+    <div class="abs c-horizon"></div>
+    <div class="abs c-rail" id="c-rail"></div>
+    <div class="abs c-foot">◀ ▶ BROWSE &nbsp;·&nbsp; ▼ ALL APPS (8)</div>
+  </section>
+
+  <!-- D and E: the minimal black-and-white themes on the rail layout -->
+  <template id="mono">
+    <div class="abs m-greet">Good evening</div>
+    <div class="abs m-right"><span class="m-time">19:36</span><span>Thu 22 Oct</span><span>Inputs</span><span>Network</span><span>Settings</span></div>
+    <div class="abs m-eyebrow" data-m="last"></div>
+    <div class="abs m-name" data-m="name"></div>
+    <div class="abs m-hints"><span><b>OK</b>Open</span><span><b>Hold OK</b>Options</span><span><b>Down</b>All apps</span></div>
+    <div class="abs m-horizon"></div>
+    <div class="abs m-rail" data-m="rail"></div>
+    <div class="abs m-count" data-m="count"></div>
+  </template>
+  <section class="view mono dark" id="v-d"></section>
+  <section class="view mono light" id="v-e"></section>
+
+</div></div></div>
+
+<div class="notes">
+  <div>
+    <h2>How to use</h2>
+    <p><kbd>1</kbd> to <kbd>5</kbd> switch mockups; the arrow keys move focus like the D-pad.</p>
+  </div>
+  <div class="note on" data-for="a">
+    <h2>A · The stock launcher today, cinematic shelf</h2>
+    <ul>
+      <li>Only <code>config.json</code> and <code>wallpaper.jpg</code>; no code.</li>
+      <li>The shelf lays the focused app's artwork over the whole screen at 50%, so white banners wash the wallpaper out.</li>
+    </ul>
+  </div>
+  <div class="note" data-for="b">
+    <h2>B · The stock launcher today, classic dock</h2>
+    <ul>
+      <li>The same wallpaper with <code>cinematic_home: false</code>: the dock's top edge sits on the emitter line.</li>
+    </ul>
+  </div>
+  <div class="note" data-for="c">
+    <h2>C · Hard Light: the rail layout</h2>
+    <ul>
+      <li>One row of tiles standing on a horizon line, the focused one raised with its reflection and an under-glow.</li>
+      <li>A compact top rail, the app name in a display face, and control hints. See <code>GUIDE.md</code>.</li>
+    </ul>
+  </div>
+  <div class="note" data-for="d">
+    <h2>D · Mono Dark</h2>
+    <ul>
+      <li>Pure black, white type, Outfit only; no wallpaper, glow or reflection.</li>
+      <li>Every banner greyscale and dimmed: the focused app is the only colour on screen.</li>
+      <li>Focus is a 2 px outline; the counter says where you are in the row.</li>
+    </ul>
+  </div>
+  <div class="note" data-for="e">
+    <h2>E · Mono Light</h2>
+    <ul>
+      <li>The same idea on white: near-black ink, light grey hairlines.</li>
+      <li>Needs the fork's light mode (<code>surface_mode: light</code>): pills, focus and settings inverted.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const APPS = [
+  { id: "netflix", name: "Netflix", c: "#E50914", last: "5 minutes ago" },
+  { id: "youtube", name: "YouTube", c: "#FF2A2A", last: "2 hours ago" },
+  { id: "disney", name: "Disney+", c: "#1BA3B0", last: "yesterday" },
+  { id: "hbo", name: "HBO Max", c: "#6B4BFF", last: "3 days ago" },
+  { id: "crunchyroll", name: "Crunchyroll", c: "#F47521" },
+  { id: "downloader", name: "Downloader", c: "#F07A22" },
+  { id: "odin", name: "Odin Browser", c: "#19C3C9" },
+  { id: "kick", name: "Kick", c: "#53FC18" },
+];
+const COLS_X = [161, 576, 990, 1404];
+const img = a => `url(tiles/${a.id}.png)`;
+const q = new URLSearchParams(location.search);
+if (q.has("shot")) document.body.classList.add("shot");
+
+// header into A and B
+for (const v of ["v-a", "v-b"]) document.getElementById(v).append(document.getElementById("hdr").content.cloneNode(true));
+
+function tile(parent, a, x, y) {
+  const t = document.createElement("div");
+  t.className = "tile"; t.style.left = x + "px"; t.style.top = y + "px";
+  t.style.backgroundImage = img(a); t.style.setProperty("--glow", a.c);
+  parent.append(t); return t;
+}
+
+// A: dock of four, the next row peeking at the bottom
+const aTiles = [], aWrap = document.getElementById("a-tiles");
+APPS.forEach((a, i) => { const t = tile(aWrap, a, COLS_X[i % 4], i < 4 ? 723 : 1036); if (i < 4) aTiles.push(t); });
+// B: dock row and one grid row, name under the focused tile
+const bTiles = [], bWrap = document.getElementById("b-tiles");
+APPS.forEach((a, i) => bTiles.push(tile(bWrap, a, COLS_X[i % 4], i < 4 ? 478 : 791)));
+const bName = document.createElement("div"); bName.className = "tname"; bWrap.append(bName);
+// C: one rail of eight
+const rail = document.getElementById("c-rail"), cTiles = [], cRefl = [];
+APPS.forEach((a, i) => {
+  const x = 140 + i * 320;
+  const t = document.createElement("div"); t.className = "c-tile"; t.style.left = x + "px"; t.style.backgroundImage = img(a); t.style.setProperty("--glow", a.c);
+  const r = document.createElement("div"); r.className = "c-refl"; r.style.left = x + "px"; r.style.backgroundImage = img(a);
+  rail.append(r, t); cTiles.push(t); cRefl.push(r);
+});
+
+// D, E: built from one template
+const monos = {};
+for (const k of "de") {
+  const v = document.getElementById("v-" + k);
+  v.append(document.getElementById("mono").content.cloneNode(true));
+  const rail = v.querySelector('[data-m="rail"]'), tiles = [];
+  APPS.forEach((a, i) => {
+    const t = document.createElement("div"); t.className = "m-tile";
+    t.style.left = 140 + i * 320 + "px"; t.style.backgroundImage = img(a);
+    rail.append(t); tiles.push(t);
+  });
+  monos[k] = { v, rail, tiles };
+}
+
+const f0 = +(q.get("f") || 0);
+const state = { v: q.get("v") || "a", a: f0, b: f0, c: f0, d: f0, e: f0 };
+
+function render() {
+  for (const k of "abcde") document.getElementById("v-" + k).classList.toggle("on", state.v === k);
+  document.querySelectorAll(".bar button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === state.v));
+  document.querySelectorAll(".note").forEach(n => n.classList.toggle("on", n.dataset.for === state.v));
+
+  const fa = APPS[state.a];
+  aTiles.forEach((t, i) => t.classList.toggle("focus", i === state.a));
+  document.getElementById("a-art").style.backgroundImage = img(fa);
+  document.getElementById("a-name").textContent = fa.name;
+  document.getElementById("a-last").innerHTML = `Last opened <b>${fa.last}</b>`;
+  document.querySelectorAll("#a-dots i").forEach((d, i) => d.classList.toggle("on", i === state.a));
+
+  bTiles.forEach((t, i) => t.classList.toggle("focus", i === state.b));
+  const bn = document.querySelector("#b-tiles .tname");
+  bn.textContent = state.b >= 4 ? APPS[state.b].name : "";
+  bn.style.left = COLS_X[state.b % 4] + "px"; bn.style.top = "1006px";
+
+  const fc = APPS[state.c];
+  cTiles.forEach((t, i) => t.classList.toggle("focus", i === state.c));
+  cRefl.forEach((r, i) => r.classList.toggle("focus", i === state.c));
+  const shift = Math.max(0, state.c - 3) * 320;
+  rail.style.transform = `translateX(${-shift}px)`;
+  const under = document.getElementById("c-under");
+  under.style.transform = `translateX(${140 + state.c * 320 - shift - 116}px)`;
+  document.getElementById("v-c").style.setProperty("--glow", fc.c);
+  document.getElementById("c-name").textContent = fc.name;
+  document.getElementById("c-last").textContent = fc.last ? `LAST OPENED · ${fc.last.toUpperCase()}` : "INSTALLED APP";
+
+  for (const k of "de") {
+    const m = monos[k], i = state[k], a = APPS[i];
+    m.tiles.forEach((t, n) => t.classList.toggle("focus", n === i));
+    m.rail.style.transform = `translateX(${-Math.max(0, i - 3) * 320}px)`;
+    m.v.querySelector('[data-m="name"]').textContent = a.name;
+    m.v.querySelector('[data-m="last"]').textContent = a.last ? `Last opened · ${a.last}` : "Installed";
+    m.v.querySelector('[data-m="count"]').textContent = `${String(i + 1).padStart(2, "0")} / ${String(APPS.length).padStart(2, "0")}`;
+  }
+}
+
+function move(dx, dy) {
+  const v = state.v;
+  if (v === "a") state.a = Math.min(3, Math.max(0, state.a + dx));
+  if (v === "b") {
+    let i = state.b + dx + dy * 4;
+    if (dx && Math.floor(i / 4) !== Math.floor(state.b / 4)) i = state.b;
+    if (i >= 0 && i < 8) state.b = i;
+  }
+  if (v === "c" || v === "d" || v === "e") state[v] = Math.min(7, Math.max(0, state[v] + dx));
+  render();
+}
+addEventListener("keydown", e => {
+  const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (k) { e.preventDefault(); move(...k); }
+  if (["1", "2", "3", "4", "5"].includes(e.key)) { state.v = "abcde"[+e.key - 1]; render(); }
+});
+document.querySelectorAll(".bar button").forEach(b => b.addEventListener("click", () => { state.v = b.dataset.v; render(); b.blur(); }));
+
+function fit() {
+  if (document.body.classList.contains("shot")) return;
+  const f = document.getElementById("frame");
+  document.getElementById("stage").style.transform = `scale(${f.clientWidth / 1920})`;
+}
+addEventListener("resize", fit);
+render(); fit();
+</script>
+</body>
+</html>
