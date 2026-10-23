@@ -1654,8 +1654,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         // Hero: eyebrow, name, hints, at a fixed place (railHeroY) instead of above a dock.
         LinearLayout heroGroup = (LinearLayout) hero;
+        // The screen clips the hero to its bounds, and a script capital's lead-in stroke reaches well left of where
+        // its letter starts: with a script face the hero starts `lead` further left, and its lines move back in.
+        int lead = script != null ? Math.round(90 * s) : 0;
         FrameLayout.LayoutParams hlp = (FrameLayout.LayoutParams) hero.getLayoutParams();
-        hlp.setMarginStart(margin);
+        hlp.setMarginStart(margin - lead);
         hero.setLayoutParams(hlp);
         heroGroup.setClipChildren(false);
         heroGroup.setClipToPadding(false);
@@ -1668,7 +1671,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroEyebrow.setSingleLine(true);
         heroEyebrow.setTextColor(RailStyle.or(rail.highlight, ink));
         heroEyebrow.setVisibility(rail.heroEyebrow ? View.VISIBLE : View.GONE);
-        heroGroup.addView(heroEyebrow, 0);
+        LinearLayout.LayoutParams elp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        elp.setMarginStart(lead);
+        heroGroup.addView(heroEyebrow, 0, elp);
         heroName.setTextColor(ink);
         heroName.setShadowLayer(30 * s, 0, 4 * s, 0xA603161D);
         heroName.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -1682,11 +1687,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // Great Vibes' line box is deep below the baseline for its swashes; pull the hints up into it.
             nlp.topMargin = Math.round(-12 * s);
             nlp.bottomMargin = Math.round(-58 * s);
-            // A script capital's lead-in stroke reaches left of its advance: give it room inside the view (the
-            // hero is clipped to its bounds) and move the view left by as much, so the text stays where it was;
-            // then 5px more on the left and 15px under the name, so it sits a little in from the edge and off the hints.
-            heroName.setPadding(Math.round((48 + 5) * s), 0, Math.round(24 * s), Math.round(15 * s));
-            nlp.setMarginStart(Math.round(-60 * s));
+            // The name starts 3px right of the margin, with the room for the lead-in stroke inside the view, and
+            // 15px under it keeps it off the hints.
+            heroName.setPadding(lead + Math.round(3 * s), 0, Math.round(24 * s), Math.round(15 * s));
+            nlp.setMarginStart(0);
         } else {
             heroName.setTypeface(UiFont.get(this, R.string.font_extralight));
             heroName.setTextSize(TypedValue.COMPLEX_UNIT_PX, 150 * s);
@@ -1705,6 +1709,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroHints.setVisibility(RailStyle.HINTS_TEXT.equals(rail.hints) ? View.VISIBLE : View.GONE);
         LinearLayout.LayoutParams ylp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         ylp.topMargin = Math.round(14 * s);
+        ylp.setMarginStart(lead);
         heroGroup.addView(heroHints, ylp);
     }
 
